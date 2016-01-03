@@ -24,7 +24,9 @@
   #define CONFIG_CPU_MEGA
 #endif
 
-#define CONFIG_DBG_SERIAL   Serial
+//#define CONFIG_DBG_SERIAL   Serial
+#define CONFIG_CTRL_SERIAL  Serial
+#define CONFIG_CTRL_BAUD    57600
 
 
 #endif

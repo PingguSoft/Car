@@ -1,6 +1,7 @@
 #include <SoftwareSerial.h>
 #include <Servo.h>
 #include "utils.h"
+#include "SerialProtocol.h"
 
 #define PIN_PWM     6
 #define PIN_IN1     7
@@ -16,25 +17,11 @@
 #define DEG_MIN     (DEG_CENTER - DEG_AMOUNT)
 #define DEG_MAX     (DEG_CENTER + DEG_AMOUNT)
 
-static Servo   servoSteer;
-static uint8_t angle_dir = 1;
-static int     angle = 90;
+#define FP_SHIFT    7
+#define FP_VAL      35  // (DEG_AMOUNT * 2) / 255 * 128 ( << 7)
 
-void setup()
-{
-    pinMode(PIN_PWM, OUTPUT);
-    pinMode(PIN_IN1, OUTPUT);
-    pinMode(PIN_IN2, OUTPUT);
-
-	Serial.begin(115200);
-	while (!Serial) {
-		; // wait for serial port to connect. Needed for Leonardo only
-	}
-	servoSteer.attach(PIN_STEER);
-    servoSteer.write(angle);
-    printf(F("angle : %d\n"), angle);
-    delay(3000);
-}
+static Servo            servoSteer;
+static SerialProtocol   *ctrl;
 
 void setDir(int dir)
 {
@@ -58,25 +45,92 @@ void setDir(int dir)
 void setSpeed(int speed)
 {
     analogWrite(PIN_PWM, speed);
-    servoSteer.write(angle);
+}
+
+static u8 scale = 30;
+s8 inputCallback(u8 cmd, u8 *data, u8 size, u8 *res)
+{
+    s8 ret = -1;
+
+    switch (cmd) {
+        case SerialProtocol::MSP_ANALOG:
+/*
+            if (core) {
+                u8 *ptr = (u8*)res;
+
+                *ptr = core->getBattLevel(scale);
+                *(ptr + 3) = core->getBattLevel();
+                ret = 7;
+            }
+*/
+            break;
+
+        case SerialProtocol::MSP_SET_MISC:
+            scale = *(data + 18);
+            ret = 0;
+            break;
+
+        case SerialProtocol::MSP_SET_RAW_RC:
+            {
+                int  angle;
+                u8   btn, lx, ly, rx, ry;
+
+                btn = ctrl->getButtons();
+                if (btn & 0x01) {
+                    setDir(DIR_REV);
+                } else {
+                    setDir(DIR_FWD);
+                }
+
+                ctrl->getStick(&lx, &ly, &rx, &ry);
+                angle = 90 + (((lx - 128) * FP_VAL) >> FP_SHIFT);
+                servoSteer.write(angle);
+                setSpeed(ry);
+            }
+            break;
+    }
+    return ret;
+}
+
+void setup()
+{
+    pinMode(PIN_PWM, OUTPUT);
+    pinMode(PIN_IN1, OUTPUT);
+    pinMode(PIN_IN2, OUTPUT);
+
+    setDir(DIR_FWD);
+	servoSteer.attach(PIN_STEER);
+    servoSteer.write(DEG_CENTER);
+
+    ctrl = new SerialProtocol();
+	ctrl->init(inputCallback);
+
+//	Serial.begin(57600);
+//	while (!Serial);
+//  printf(F("angle : %d\n"), angle);
 }
 
 
+static uint8_t car_dir = DIR_FWD;
+static int     angle   = DEG_CENTER;
+
 void loop()
 {
+    ctrl->handleRX();
+#if 0
+
     setDir(DIR_FWD);
-#if 1
     for (int i = 100; i <= 255; i += 5) {
-        printf(F("Speed : %d angle : %d\n"), i, angle);
+        //printf(F("Speed : %d angle : %d\n"), i, angle);
         setSpeed(i);
 
         if (angle > DEG_MAX) {
-            angle_dir = 0;
+            car_dir = 0;
         } else if (angle < DEG_MIN) {
-            angle_dir = 1;
+            car_dir = 1;
         }
 
-        if (angle_dir == 1) {
+        if (car_dir == 1) {
             angle += 5;
         } else {
             angle -= 5;
@@ -87,16 +141,16 @@ void loop()
 
     setDir(DIR_REV);
     for (int i = 100; i <= 255; i += 5) {
-        printf(F("Speed : %d angle : %d\n"), i, angle);
+        //printf(F("Speed : %d angle : %d\n"), i, angle);
         setSpeed(i);
 
         if (angle > DEG_MAX) {
-            angle_dir = 0;
+            car_dir = 0;
         } else if (angle < DEG_MIN) {
-            angle_dir = 1;
+            car_dir = 1;
         }
 
-        if (angle_dir == 1) {
+        if (car_dir == 1) {
             angle += 5;
         } else {
             angle -= 5;
@@ -104,22 +158,6 @@ void loop()
         servoSteer.write(angle);
         delay(1000);
     }
-#else
-        printf(F("angle : %d\n"), angle);
-        if (angle > DEG_MAX) {
-            angle_dir = 0;
-        } else if (angle < DEG_MIN) {
-            angle_dir = 1;
-        }
-
-        if (angle_dir == 1) {
-            angle += 5;
-        } else {
-            angle -= 5;
-        }
-        servoSteer.write(angle);
-        delay(200);
 #endif
-
 }
 
