@@ -1,4 +1,4 @@
-#include <SoftwareSerial.h>
+#include <Arduino.h>
 #include <Servo.h>
 #include "utils.h"
 #include "SerialProtocol.h"
