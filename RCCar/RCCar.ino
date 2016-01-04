@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <Servo.h>
+#include <math.h>
 #include "utils.h"
 #include "SerialProtocol.h"
 
@@ -13,20 +14,19 @@
 #define DIR_REV     2
 
 #define DEG_CENTER  90
-#define DEG_AMOUNT  35
-#define DEG_MIN     (DEG_CENTER - DEG_AMOUNT)
-#define DEG_MAX     (DEG_CENTER + DEG_AMOUNT)
-
-#define FP_SHIFT    7
-#define FP_VAL      35  // (DEG_AMOUNT * 2) / 255 * 128 ( << 7)
+#define DEG_AMOUNT  45
 
 static Servo            servoSteer;
 static SerialProtocol   *ctrl;
+static uint8_t          dirCar = DIR_STOP;
 
 void setDir(int dir)
 {
     uint8_t in1;
     uint8_t in2;
+
+    if (dirCar == dir)
+        return;
 
     if (dir == DIR_FWD) {
         in1 = HIGH;
@@ -40,6 +40,8 @@ void setDir(int dir)
     }
     digitalWrite(PIN_IN1, in1);
     digitalWrite(PIN_IN2, in2);
+
+    dirCar = dir;
 }
 
 void setSpeed(int speed)
@@ -73,17 +75,24 @@ s8 inputCallback(u8 cmd, u8 *data, u8 size, u8 *res)
         case SerialProtocol::MSP_SET_RAW_RC:
             {
                 int  angle;
-                u8   btn, lx, ly, rx, ry;
+                u16  btn, lx, ly, rx, ry;
 
                 btn = ctrl->getButtons();
-                if (btn & 0x01) {
-                    setDir(DIR_REV);
-                } else {
-                    setDir(DIR_FWD);
-                }
 
                 ctrl->getStick(&lx, &ly, &rx, &ry);
-                angle = 90 + (((lx - 128) * FP_VAL) >> FP_SHIFT);
+                if (ry > 500) {
+                    setDir(DIR_FWD);
+                    ry = constrain(ry - 500, 0, 500);
+                    ry = map(ry, 0, 500, 50, 254);
+                } else if (ry < 500) {
+                    setDir(DIR_REV);
+                    ry = constrain(-(ry - 500), 0, 500);
+                    ry = map(ry, 0, 500, 50, 254);
+                } else {
+                    setDir(DIR_STOP);
+                    ry = 0;
+                }
+                angle = 90 + map(rx, 0, 1000, -DEG_AMOUNT, DEG_AMOUNT);
                 servoSteer.write(angle);
                 setSpeed(ry);
             }
@@ -111,53 +120,8 @@ void setup()
 }
 
 
-static uint8_t car_dir = DIR_FWD;
-static int     angle   = DEG_CENTER;
-
 void loop()
 {
     ctrl->handleRX();
-#if 0
-
-    setDir(DIR_FWD);
-    for (int i = 100; i <= 255; i += 5) {
-        //printf(F("Speed : %d angle : %d\n"), i, angle);
-        setSpeed(i);
-
-        if (angle > DEG_MAX) {
-            car_dir = 0;
-        } else if (angle < DEG_MIN) {
-            car_dir = 1;
-        }
-
-        if (car_dir == 1) {
-            angle += 5;
-        } else {
-            angle -= 5;
-        }
-        servoSteer.write(angle);
-        delay(1000);
-    }
-
-    setDir(DIR_REV);
-    for (int i = 100; i <= 255; i += 5) {
-        //printf(F("Speed : %d angle : %d\n"), i, angle);
-        setSpeed(i);
-
-        if (angle > DEG_MAX) {
-            car_dir = 0;
-        } else if (angle < DEG_MIN) {
-            car_dir = 1;
-        }
-
-        if (car_dir == 1) {
-            angle += 5;
-        } else {
-            angle -= 5;
-        }
-        servoSteer.write(angle);
-        delay(1000);
-    }
-#endif
 }
 

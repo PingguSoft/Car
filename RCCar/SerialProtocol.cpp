@@ -17,10 +17,10 @@ SerialProtocol::SerialProtocol(HardwareSerial *serial)
 
 void SerialProtocol::init(s8 (*callback)(u8 cmd, u8 *data, u8 size, u8 *res))
 {
-    mLX = 128;
-    mLY = 128;
-    mRX = 128;
-    mRY = 128;
+    mLX = 500;
+    mLY = 500;
+    mRX = 500;
+    mRY = 500;
     mState = STATE_IDLE;
     mButtons = 0;
     mCallback = callback;
@@ -82,14 +82,18 @@ void SerialProtocol::evalCommand(u8 cmd, u8 *data, u8 size)
         case MSP_SET_RAW_RC:
             rc = (u16*)data;
 
-            mLX = min(255, (*rc - 1000) * 10 / 39);   // 1000 -> 255 range, roll
+            //mLX = min(255, (*rc - 1000) * 10 / 39);   // 1000 -> 255 range, roll
+            mLX = (*rc - 1000);
             rc++;
-            mLY = min(255, (*rc - 1000) * 10 / 39);   // 1000 -> 255 range, pitch
-            mLY = 255 - mLY;
+            //mLY = min(255, (*rc - 1000) * 10 / 39);   // 1000 -> 255 range, pitch
+            //mLY = 255 - mLY;
+            mLY = (*rc - 1000);
             rc++;
-            mRX = min(255, (*rc - 1000) * 10 / 39);   // 1000 -> 255 range, yaw
+            //mRX = min(255, (*rc - 1000) * 10 / 39);   // 1000 -> 255 range, yaw
+            mRX = (*rc - 1000);
             rc++;
-            mRY = min(255, (*rc - 1000) * 10 / 39);   // 1000 -> 255 range, throttle
+            //mRY = min(255, (*rc - 1000) * 10 / 39);   // 1000 -> 255 range, throttle
+            mRY = (*rc - 1000);
             rc++;
 
             mButtons &= 0xf0;
@@ -173,7 +177,7 @@ u8 SerialProtocol::handleRX(void)
     return ret;
 }
 
-void SerialProtocol::getStick(u8 *lx, u8 *ly, u8 *rx, u8 *ry)
+void SerialProtocol::getStick(u16 *lx, u16 *ly, u16 *rx, u16 *ry)
 {
     *lx = mLX;
     *ly = mLY;

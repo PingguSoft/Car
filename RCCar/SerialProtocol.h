@@ -23,10 +23,10 @@ class SerialProtocol
 {
 private:
     // stick
-    u8        mLX;
-    u8        mLY;
-    u8        mRX;
-    u8        mRY;
+    u16        mLX;
+    u16        mLY;
+    u16        mRX;
+    u16        mRY;
     u8        mButtons;
     HardwareSerial  *mSerial;
 
@@ -72,7 +72,7 @@ public:
     SerialProtocol(HardwareSerial *serial);
     void init(s8 (*callback)(u8 cmd, u8 *data, u8 size, u8 *res));
     u8   handleRX(void);
-    void getStick(u8 *lx, u8 *ly, u8 *rx, u8 *ry);
+    void getStick(u16 *lx, u16 *ly, u16 *rx, u16 *ry);
     u8   getButtons(void);
 };
 
