@@ -77,9 +77,16 @@ s8 inputCallback(u8 cmd, u8 *data, u8 size, u8 *res)
                 int  angle;
                 u16  btn, lx, ly, rx, ry;
 
+                ctrl->getStick(&lx, &ly, &rx, &ry);
                 btn = ctrl->getButtons();
 
-                ctrl->getStick(&lx, &ly, &rx, &ry);
+                if (btn & 0x01) {
+                    ry = ly;
+                    rx = lx;
+                } else if (btn & 0x02) {
+                    rx = lx;
+                }
+
                 if (ry > 500) {
                     setDir(DIR_FWD);
                     ry = constrain(ry - 500, 0, 500);
